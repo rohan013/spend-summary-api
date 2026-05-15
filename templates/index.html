@@ -2,30 +2,57 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Account Balances</title>
+  <title>Spending</title>
+  <style>
+    body { font-family: sans-serif; padding: 2rem; }
+    h1 small { font-size: 0.55em; color: #888; font-weight: normal; }
+    table { border-collapse: collapse; width: 100%; max-width: 700px; margin-top: 1rem; }
+    th, td { padding: 8px 14px; text-align: right; border: 1px solid #ddd; }
+    th:first-child, td:first-child { text-align: left; }
+    thead th { background: #f0f0f0; }
+    .total-row td { font-weight: bold; background: #f8f8f8; }
+    .over { color: #c0392b; }
+    .under { color: #27ae60; }
+  </style>
 </head>
 <body>
-  <h1>Account Balances</h1>
-  <table border="1" cellpadding="8" cellspacing="0">
+  <h1>{{ summary.month_label }} <small>vs. {{ summary.avg_months }}-month avg</small></h1>
+  <table>
     <thead>
       <tr>
-        <th>Account Name</th>
-        <th>Type</th>
-        <th>Subtype</th>
-        <th>Current Balance</th>
-        <th>Available Balance</th>
-        <th>Currency</th>
+        <th>Category</th>
+        <th>This Month</th>
+        <th>Avg</th>
+        <th>Delta</th>
+        <th>%</th>
       </tr>
     </thead>
     <tbody>
-      {% for acct in accounts %}
+      {% set t = summary.total %}
+      <tr class="total-row">
+        <td>Total</td>
+        <td>${{ "%.2f"|format(t.current) }}</td>
+        <td>${{ "%.2f"|format(t.avg) }}</td>
+        {% if t.delta >= 0 %}
+          <td class="over">+${{ "%.2f"|format(t.delta) }}</td>
+          <td class="over">{% if t.pct is not none %}+{{ "%.0f"|format(t.pct) }}%{% else %}new{% endif %}</td>
+        {% else %}
+          <td class="under">-${{ "%.2f"|format(-t.delta) }}</td>
+          <td class="under">{{ "%.0f"|format(t.pct) }}%</td>
+        {% endif %}
+      </tr>
+      {% for cat in summary.categories %}
       <tr>
-        <td>{{ acct.name }}</td>
-        <td>{{ acct.type }}</td>
-        <td>{{ acct.subtype }}</td>
-        <td>{{ "%.2f"|format(acct.current) if acct.current is not none else "—" }}</td>
-        <td>{{ "%.2f"|format(acct.available) if acct.available is not none else "—" }}</td>
-        <td>{{ acct.currency }}</td>
+        <td>{{ cat.name }}</td>
+        <td>${{ "%.2f"|format(cat.current) }}</td>
+        <td>${{ "%.2f"|format(cat.avg) }}</td>
+        {% if cat.delta >= 0 %}
+          <td class="over">+${{ "%.2f"|format(cat.delta) }}</td>
+          <td class="over">{% if cat.pct is not none %}+{{ "%.0f"|format(cat.pct) }}%{% else %}new{% endif %}</td>
+        {% else %}
+          <td class="under">-${{ "%.2f"|format(-cat.delta) }}</td>
+          <td class="under">{{ "%.0f"|format(cat.pct) }}%</td>
+        {% endif %}
       </tr>
       {% endfor %}
     </tbody>

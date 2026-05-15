@@ -104,6 +104,8 @@ def _discover(client, access_token):
         {
             "account_id": acct["account_id"],
             "name": acct["name"],
+            "official_name": acct.get("official_name") or "",
+            "mask": acct.get("mask") or "",
             "type": acct["type"].value,
             "subtype": acct["subtype"].value if acct["subtype"] else "",
         }
@@ -194,7 +196,8 @@ def main():
     print(f"Institution : {institution_name}")
     print(f"Accounts    : {len(accounts)} found")
     for acct in accounts:
-        print(f"  • {acct['name']}  ({acct['type']}/{acct['subtype']})")
+        mask_str = f"  ••••{acct['mask']}" if acct["mask"] else ""
+        print(f"  • {acct['name']}{mask_str}  ({acct['type']}/{acct['subtype']})")
 
     existing_slug = next(
         (s for s, d in config.items() if d.get("access_token") == access_token),
@@ -212,7 +215,9 @@ def main():
     for acct in accounts:
         aid = acct["account_id"]
         default_name = existing_account_names.get(aid, acct["name"])
-        custom = _prompt(f"  Name for '{acct['name']}' ({acct['subtype']})", default_name)
+        label = acct["official_name"] or acct["name"]
+        mask_str = f" ••••{acct['mask']}" if acct["mask"] else ""
+        custom = _prompt(f"  Name for '{label}'{mask_str} ({acct['subtype']})", default_name)
         named_accounts[aid] = custom
 
     config[slug] = {

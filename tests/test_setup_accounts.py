@@ -120,7 +120,7 @@ def _plaid_error(body="plaid error"):
 
 
 def test_main_success(capsys):
-    accounts = [{"account_id": "id1", "name": "Checking", "type": "depository", "subtype": "checking"}]
+    accounts = [{"account_id": "id1", "name": "Checking", "official_name": "Chase Checking", "mask": "1234", "type": "depository", "subtype": "checking"}]
 
     with patch("setup_accounts._make_client"), \
          patch("setup_accounts._load", return_value={}), \
@@ -139,7 +139,7 @@ def test_main_success(capsys):
 
 def test_main_existing_slug_reused(capsys):
     existing_config = {"chase": {"access_token": "access-tok", "name": "Chase", "accounts": {"id1": "Old Name"}}}
-    accounts = [{"account_id": "id1", "name": "Checking", "type": "depository", "subtype": "checking"}]
+    accounts = [{"account_id": "id1", "name": "Checking", "official_name": "", "mask": "", "type": "depository", "subtype": "checking"}]
 
     with patch("setup_accounts._make_client"), \
          patch("setup_accounts._load", return_value=existing_config), \
