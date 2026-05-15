@@ -17,7 +17,8 @@ _SUMMARY = {
     "avg_months": 4,
     "total": {"current": 500.0, "avg": 400.0, "delta": 100.0, "pct": 25.0},
     "categories": [
-        {"name": "Food and Drink", "current": 300.0, "avg": 200.0, "delta": 100.0, "pct": 50.0},
+        {"name": "Food and Drink", "current": 300.0, "avg": 200.0, "delta": 100.0, "pct": 50.0,
+         "top_txns": [{"name": "Whole Foods", "amount": 89.50}]},
     ],
 }
 

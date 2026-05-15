@@ -34,6 +34,12 @@ def compute_spending_summary(
     for key in prior_keys:
         all_cats.update(monthly[key].keys())
 
+    current_txns: dict[str, list] = defaultdict(list)
+    for txn in transactions:
+        d = txn["date"]
+        if (d.year, d.month) == current_key:
+            current_txns[txn["category"]].append(txn)
+
     rows = []
     for cat in all_cats:
         current = current_by_cat.get(cat, 0.0)
@@ -42,7 +48,15 @@ def compute_spending_summary(
             continue
         delta = current - avg
         pct = ((delta / avg) * 100) if avg != 0 else None
-        rows.append({"name": cat, "current": current, "avg": avg, "delta": delta, "pct": pct})
+        top = sorted(current_txns.get(cat, []), key=lambda t: t["amount"], reverse=True)[:5]
+        rows.append({
+            "name": cat,
+            "current": current,
+            "avg": avg,
+            "delta": delta,
+            "pct": pct,
+            "top_txns": [{"name": t["name"], "amount": t["amount"]} for t in top],
+        })
 
     rows.sort(key=lambda r: abs(r["delta"]), reverse=True)
 

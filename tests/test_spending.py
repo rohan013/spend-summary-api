@@ -5,8 +5,8 @@ import pytest
 from spending import compute_spending_summary
 
 
-def _txn(amount, year, month, day, category="Food and Drink"):
-    return {"amount": amount, "date": date(year, month, day), "category": category, "name": "Store"}
+def _txn(amount, year, month, day, category="Food and Drink", name="Store"):
+    return {"amount": amount, "date": date(year, month, day), "category": category, "name": name}
 
 
 TODAY = date(2026, 5, 15)
@@ -152,3 +152,44 @@ def test_under_spending_negative_delta():
     cat = result["categories"][0]
     assert cat["delta"] < 0
     assert cat["pct"] < 0
+
+
+def test_top_txns_sorted_by_amount_descending():
+    txns = [
+        _txn(10, 2026, 5, 1, name="Small"),
+        _txn(90, 2026, 5, 2, name="Large"),
+        _txn(50, 2026, 5, 3, name="Medium"),
+    ]
+    result = compute_spending_summary(txns, TODAY)
+    top = result["categories"][0]["top_txns"]
+    assert [t["name"] for t in top] == ["Large", "Medium", "Small"]
+
+
+def test_top_txns_capped_at_five():
+    txns = [_txn(10 * i, 2026, 5, i, name=f"Store {i}") for i in range(1, 9)]
+    result = compute_spending_summary(txns, TODAY)
+    assert len(result["categories"][0]["top_txns"]) == 5
+
+
+def test_top_txns_only_current_month():
+    txns = [
+        _txn(100, 2026, 5, 1, name="Current"),
+        _txn(200, 2026, 4, 1, name="Prior"),  # prior month — should not appear
+    ]
+    result = compute_spending_summary(txns, TODAY)
+    cat = result["categories"][0]
+    names = [t["name"] for t in cat["top_txns"]]
+    assert names == ["Current"]
+
+
+def test_top_txns_empty_when_category_absent_this_month():
+    txns = [_txn(100, 2026, 4, 1)]
+    result = compute_spending_summary(txns, TODAY)
+    assert result["categories"][0]["top_txns"] == []
+
+
+def test_top_txns_shape():
+    txns = [_txn(42, 2026, 5, 1, name="Merchant")]
+    result = compute_spending_summary(txns, TODAY)
+    top = result["categories"][0]["top_txns"]
+    assert top[0] == {"name": "Merchant", "amount": 42}

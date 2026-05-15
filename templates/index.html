@@ -13,6 +13,8 @@
     .total-row td { font-weight: bold; background: #f8f8f8; }
     .over { color: #c0392b; }
     .under { color: #27ae60; }
+    .txn-row td { font-size: 0.85em; color: #888; border-top: none; }
+    .txn-name { padding-left: 2rem; }
   </style>
 </head>
 <body>
@@ -54,6 +56,13 @@
           <td class="under">{{ "%.0f"|format(cat.pct) }}%</td>
         {% endif %}
       </tr>
+      {% for txn in cat.top_txns %}
+      <tr class="txn-row">
+        <td class="txn-name">↳ {{ txn.name }}</td>
+        <td>${{ "%.2f"|format(txn.amount) }}</td>
+        <td></td><td></td><td></td>
+      </tr>
+      {% endfor %}
       {% endfor %}
     </tbody>
   </table>
