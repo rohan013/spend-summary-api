@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Account Balances</title>
+</head>
+<body>
+  <h1>Account Balances</h1>
+  <table border="1" cellpadding="8" cellspacing="0">
+    <thead>
+      <tr>
+        <th>Account Name</th>
+        <th>Type</th>
+        <th>Subtype</th>
+        <th>Current Balance</th>
+        <th>Available Balance</th>
+        <th>Currency</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for acct in accounts %}
+      <tr>
+        <td>{{ acct.name }}</td>
+        <td>{{ acct.type }}</td>
+        <td>{{ acct.subtype }}</td>
+        <td>{{ "%.2f"|format(acct.current) if acct.current is not none else "—" }}</td>
+        <td>{{ "%.2f"|format(acct.available) if acct.available is not none else "—" }}</td>
+        <td>{{ acct.currency }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>
