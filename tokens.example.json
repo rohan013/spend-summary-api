@@ -1,0 +1,17 @@
+{
+  "chase": {
+    "access_token": "access-production-xxx",
+    "name": "Chase",
+    "accounts": {
+      "abc123": "Travel Rewards Visa",
+      "def456": "Main Checking"
+    }
+  },
+  "bofa": {
+    "access_token": "access-production-yyy",
+    "name": "Bank of America",
+    "accounts": {
+      "ghi789": "BofA Checking"
+    }
+  }
+}
