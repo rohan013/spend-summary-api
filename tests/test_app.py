@@ -51,9 +51,9 @@ def test_index_renders_category_row(client):
     assert "300.00" in html
 
 
-def test_index_empty_summary_renders_only_total_row(client):
+def test_index_empty_summary_renders_hero_without_categories(client):
     with patch("app.get_transactions", return_value=[]), \
          patch("app.compute_spending_summary", return_value=_EMPTY_SUMMARY):
         html = client.get("/").data.decode()
-    assert "Total" in html
+    assert "Monthly Spending" in html
     assert "Food and Drink" not in html

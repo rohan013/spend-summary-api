@@ -2,69 +2,413 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Spending</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ summary.month_label }} — Spending</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    body { font-family: sans-serif; padding: 2rem; }
-    h1 small { font-size: 0.55em; color: #888; font-weight: normal; }
-    table { border-collapse: collapse; width: 100%; max-width: 700px; margin-top: 1rem; }
-    th, td { padding: 8px 14px; text-align: right; border: 1px solid #ddd; }
-    th:first-child, td:first-child { text-align: left; }
-    thead th { background: #f0f0f0; }
-    .total-row td { font-weight: bold; background: #f8f8f8; }
-    .over { color: #c0392b; }
-    .under { color: #27ae60; }
-    .txn-row td { font-size: 0.85em; color: #888; border-top: none; }
-    .txn-name { padding-left: 2rem; }
+    :root {
+      --bg: #f8f9fa;
+      --card: #ffffff;
+      --accent: #4361ee;
+      --over: #e63946;
+      --under: #2dc653;
+      --text: #212529;
+      --muted: #6c757d;
+      --border: #e9ecef;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+      --radius: 12px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    /* Hero */
+    .hero {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 0.75rem;
+      box-shadow: var(--shadow);
+    }
+    .hero-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    .hero-month {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0.2rem 0 0.75rem;
+    }
+    .hero-amount {
+      font-size: 2.75rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+    .hero-delta {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-top: 0.6rem;
+    }
+    .hero-avg-note {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+    .delta-over { color: var(--over); }
+    .delta-under { color: var(--under); }
+
+    /* Chart */
+    .chart-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      margin-bottom: 0.75rem;
+      box-shadow: var(--shadow);
+    }
+    .chart-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 1rem;
+    }
+    .chart-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 240px;
+      margin: 0 auto;
+    }
+
+    /* Section label */
+    .section-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin: 1.25rem 0 0.5rem 0.25rem;
+    }
+
+    /* Category cards */
+    .cat-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      margin-bottom: 0.6rem;
+      overflow: hidden;
+    }
+    .cat-header {
+      padding: 1rem 1.25rem 0.75rem;
+      cursor: pointer;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .cat-header:active { background: #f9fafb; }
+    .cat-left { flex: 1; min-width: 0; }
+    .cat-name {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .cat-amount {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      margin-top: 0.1rem;
+    }
+    .cat-right {
+      text-align: right;
+      flex-shrink: 0;
+      padding-top: 0.15rem;
+    }
+    .cat-delta {
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+    .cat-pct {
+      font-size: 0.75rem;
+      font-weight: 500;
+      margin-top: 0.1rem;
+    }
+    .cat-chevron {
+      font-size: 0.6rem;
+      color: var(--muted);
+      margin-top: 0.35rem;
+      display: block;
+      transition: transform 0.2s ease;
+    }
+    .cat-card.open .cat-chevron { transform: rotate(180deg); }
+
+    /* Progress bars */
+    .progress-section {
+      padding: 0 1.25rem 0.9rem;
+    }
+    .progress-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.35rem;
+    }
+    .progress-row:last-child { margin-bottom: 0; }
+    .progress-label {
+      font-size: 0.68rem;
+      color: var(--muted);
+      width: 5.5rem;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .progress-track {
+      flex: 1;
+      height: 5px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      border-radius: 3px;
+    }
+    .progress-fill-current { background: var(--accent); }
+    .progress-fill-avg { background: #adb5bd; }
+    .progress-value {
+      font-size: 0.68rem;
+      color: var(--muted);
+      width: 3.5rem;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    /* Accordion body */
+    .cat-body {
+      display: none;
+      border-top: 1px solid var(--border);
+    }
+    .cat-card.open .cat-body { display: block; }
+    .txn-list { list-style: none; }
+    .txn-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.55rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      gap: 0.5rem;
+    }
+    .txn-item:last-child { border-bottom: none; }
+    .txn-name {
+      font-size: 0.82rem;
+      color: var(--text);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .txn-amount {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .txn-empty {
+      padding: 0.75rem 1.25rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    /* Desktop */
+    @media (min-width: 768px) {
+      body { padding: 2rem; }
+      .hero { padding: 2rem; }
+      .hero-amount { font-size: 3.5rem; }
+      .hero-month { font-size: 1.65rem; }
+      .chart-wrapper { max-width: 300px; }
+      .cat-header { padding: 1.25rem 1.5rem 0.9rem; }
+      .cat-amount { font-size: 1.75rem; }
+      .progress-section { padding: 0 1.5rem 1rem; }
+      .txn-item { padding: 0.6rem 1.5rem; }
+    }
   </style>
 </head>
 <body>
-  <h1>{{ summary.month_label }} <small>vs. {{ summary.avg_months }}-month avg</small></h1>
-  <table>
-    <thead>
-      <tr>
-        <th>Category</th>
-        <th>This Month</th>
-        <th>Avg</th>
-        <th>Delta</th>
-        <th>%</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% set t = summary.total %}
-      <tr class="total-row">
-        <td>Total</td>
-        <td>${{ "%.2f"|format(t.current) }}</td>
-        <td>${{ "%.2f"|format(t.avg) }}</td>
-        {% if t.delta >= 0 %}
-          <td class="over">+${{ "%.2f"|format(t.delta) }}</td>
-          <td class="over">{% if t.pct is not none %}+{{ "%.0f"|format(t.pct) }}%{% else %}new{% endif %}</td>
+  <div class="container">
+
+    <!-- Hero -->
+    {% set t = summary.total %}
+    {% set t_over = t.delta >= 0 %}
+    <section class="hero">
+      <div class="hero-label">Monthly Spending</div>
+      <div class="hero-month">{{ summary.month_label }}</div>
+      <div class="hero-amount">${{ "%.2f"|format(t.current) }}</div>
+      <div class="hero-delta {{ 'delta-over' if t_over else 'delta-under' }}">
+        {% if t_over %}
+          ▲ +${{ "%.2f"|format(t.delta) }}{% if t.pct is not none %} (+{{ "%.0f"|format(t.pct) }}%){% else %} (new){% endif %}
         {% else %}
-          <td class="under">-${{ "%.2f"|format(-t.delta) }}</td>
-          <td class="under">{{ "%.0f"|format(t.pct) }}%</td>
+          ▼ -${{ "%.2f"|format(-t.delta) }} ({{ "%.0f"|format(t.pct) }}%)
         {% endif %}
-      </tr>
-      {% for cat in summary.categories %}
-      <tr>
-        <td>{{ cat.name }}</td>
-        <td>${{ "%.2f"|format(cat.current) }}</td>
-        <td>${{ "%.2f"|format(cat.avg) }}</td>
-        {% if cat.delta >= 0 %}
-          <td class="over">+${{ "%.2f"|format(cat.delta) }}</td>
-          <td class="over">{% if cat.pct is not none %}+{{ "%.0f"|format(cat.pct) }}%{% else %}new{% endif %}</td>
+        vs avg
+      </div>
+      <div class="hero-avg-note">Based on {{ summary.avg_months }}-month average</div>
+    </section>
+
+    <!-- Donut chart -->
+    <section class="chart-card">
+      <div class="chart-title">Spending by Category</div>
+      <div class="chart-wrapper">
+        <canvas id="spendingChart" aria-label="Spending by category donut chart" role="img"></canvas>
+      </div>
+    </section>
+
+    <!-- Category cards -->
+    <div class="section-title">Categories — biggest movers first</div>
+    {% for cat in summary.categories %}
+    {% set is_over = cat.delta >= 0 %}
+    {% set max_val = cat.current if cat.current > cat.avg else cat.avg %}
+    {% set pct_current = (cat.current / max_val * 100) if max_val > 0 else 0 %}
+    {% set pct_avg = (cat.avg / max_val * 100) if max_val > 0 else 0 %}
+    <article class="cat-card" id="cat-{{ loop.index }}">
+      <div class="cat-header" onclick="toggleCard(this)" role="button" aria-expanded="false" aria-controls="cat-body-{{ loop.index }}">
+        <div class="cat-left">
+          <div class="cat-name">{{ cat.name }}</div>
+          <div class="cat-amount">${{ "%.2f"|format(cat.current) }}</div>
+        </div>
+        <div class="cat-right">
+          <div class="cat-delta {{ 'delta-over' if is_over else 'delta-under' }}">
+            {% if is_over %}+${{ "%.2f"|format(cat.delta) }}{% else %}-${{ "%.2f"|format(-cat.delta) }}{% endif %}
+          </div>
+          <div class="cat-pct {{ 'delta-over' if is_over else 'delta-under' }}">
+            {% if cat.pct is not none %}
+              {% if is_over %}+{{ "%.0f"|format(cat.pct) }}%{% else %}{{ "%.0f"|format(cat.pct) }}%{% endif %}
+            {% else %}new{% endif %}
+          </div>
+          <span class="cat-chevron">▼</span>
+        </div>
+      </div>
+      <div class="progress-section">
+        <div class="progress-row">
+          <span class="progress-label">This month</span>
+          <div class="progress-track">
+            <div class="progress-fill progress-fill-current" style="width: {{ pct_current|round(1) }}%"></div>
+          </div>
+          <span class="progress-value">${{ "%.0f"|format(cat.current) }}</span>
+        </div>
+        <div class="progress-row">
+          <span class="progress-label">{{ summary.avg_months }}-mo avg</span>
+          <div class="progress-track">
+            <div class="progress-fill progress-fill-avg" style="width: {{ pct_avg|round(1) }}%"></div>
+          </div>
+          <span class="progress-value">${{ "%.0f"|format(cat.avg) }}</span>
+        </div>
+      </div>
+      <div class="cat-body" id="cat-body-{{ loop.index }}">
+        {% if cat.top_txns %}
+        <ul class="txn-list">
+          {% for txn in cat.top_txns %}
+          <li class="txn-item">
+            <span class="txn-name">{{ txn.name }}</span>
+            <span class="txn-amount">${{ "%.2f"|format(txn.amount) }}</span>
+          </li>
+          {% endfor %}
+        </ul>
         {% else %}
-          <td class="under">-${{ "%.2f"|format(-cat.delta) }}</td>
-          <td class="under">{{ "%.0f"|format(cat.pct) }}%</td>
+        <div class="txn-empty">No transactions this month</div>
         {% endif %}
-      </tr>
-      {% for txn in cat.top_txns %}
-      <tr class="txn-row">
-        <td class="txn-name">↳ {{ txn.name }}</td>
-        <td>${{ "%.2f"|format(txn.amount) }}</td>
-        <td></td><td></td><td></td>
-      </tr>
-      {% endfor %}
-      {% endfor %}
-    </tbody>
-  </table>
+      </div>
+    </article>
+    {% endfor %}
+
+  </div><!-- /container -->
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      var canvas = document.getElementById('spendingChart');
+      if (!canvas || typeof Chart === 'undefined') return;
+
+      var labels = [
+        {% for cat in summary.categories if cat.current > 0 %}
+          {{ cat.name | tojson }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+      ];
+      var amounts = [
+        {% for cat in summary.categories if cat.current > 0 %}
+          {{ "%.2f"|format(cat.current) }}{% if not loop.last %},{% endif %}
+        {% endfor %}
+      ];
+      var palette = [
+        '#4361ee','#3a86ff','#7209b7','#f72585','#4cc9f0',
+        '#fb5607','#ffbe0b','#8338ec','#06d6a0','#ef233c'
+      ];
+
+      new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: amounts,
+            backgroundColor: labels.map(function(_, i) { return palette[i % palette.length]; }),
+            borderWidth: 2,
+            borderColor: '#ffffff',
+            hoverOffset: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          cutout: '62%',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  return ' $' + parseFloat(ctx.parsed).toFixed(2);
+                }
+              }
+            }
+          }
+        }
+      });
+    });
+  </script>
+
+  <script>
+    function toggleCard(header) {
+      var card = header.closest('.cat-card');
+      var isOpen = card.classList.contains('open');
+      card.classList.toggle('open', !isOpen);
+      header.setAttribute('aria-expanded', String(!isOpen));
+    }
+  </script>
 </body>
 </html>
