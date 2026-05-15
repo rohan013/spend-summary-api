@@ -10,7 +10,7 @@ from plaid.model.link_token_create_request import LinkTokenCreateRequest
 from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUser
 from plaid.model.products import Products
 
-from token_store import TokenStore
+from token_store import JSONTokenStore, TokenStore
 
 load_dotenv()
 
@@ -27,6 +27,7 @@ _configuration = plaid.Configuration(
     },
 )
 _client = plaid_api.PlaidApi(plaid.ApiClient(_configuration))
+_store = JSONTokenStore()
 
 
 def create_link_token() -> str:
@@ -47,7 +48,7 @@ def exchange_public_token(public_token: str) -> str:
     return response["access_token"]
 
 
-def get_balances(store: TokenStore) -> list[dict]:
+def get_balances(store: TokenStore = _store) -> list[dict]:
     accounts = []
 
     for institution in store.list_institutions():
