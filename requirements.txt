@@ -1,4 +1,5 @@
 flask
+gunicorn
 plaid-python
 python-dotenv
 pytest
