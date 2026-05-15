@@ -41,28 +41,28 @@ _LINK_HTML = """<!DOCTYPE html>
   <p>If nothing happens, <a href="#" id="open-link">click here</a>.</p>
   <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
   <script>
-    const handler = Plaid.create({{
+    const handler = Plaid.create({
       token: '{link_token}',
-      onSuccess: function(public_token, metadata) {{
-        fetch('/callback', {{
+      onSuccess: function(public_token, metadata) {
+        fetch('/callback', {
           method: 'POST',
-          headers: {{'Content-Type': 'application/json'}},
-          body: JSON.stringify({{public_token: public_token}})
-        }}).then(() => {{
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({public_token: public_token})
+        }).then(() => {
           document.body.innerHTML = '<h2>Success! Return to your terminal.</h2>';
-        }});
-      }},
-      onExit: function(err, metadata) {{
-        if (err) {{
+        });
+      },
+      onExit: function(err, metadata) {
+        if (err) {
           document.body.innerHTML = '<h2>Error: ' + err.display_message + '</h2>';
-        }}
-      }}
-    }});
+        }
+      }
+    });
     handler.open();
-    document.getElementById('open-link').onclick = function(e) {{
+    document.getElementById('open-link').onclick = function(e) {
       e.preventDefault();
       handler.open();
-    }};
+    };
   </script>
 </body>
 </html>"""
