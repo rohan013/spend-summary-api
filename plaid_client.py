@@ -5,7 +5,6 @@ from datetime import date
 from dotenv import load_dotenv
 import plaid
 from plaid.api import plaid_api
-from plaid.model.accounts_balance_get_request import AccountsBalanceGetRequest
 from plaid.model.country_code import CountryCode
 from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchangeRequest
 from plaid.model.link_token_create_request import LinkTokenCreateRequest
@@ -137,23 +136,3 @@ def get_transactions(store: TokenStore = _store, months_back: int = 5) -> list[d
     return [txn for batch in results for txn in batch]
 
 
-def get_balances(store: TokenStore = _store) -> list[dict]:
-    accounts = []
-
-    for institution in store.list_institutions():
-        response = _client.accounts_balance_get(
-            AccountsBalanceGetRequest(access_token=institution.access_token)
-        )
-        for acct in response["accounts"]:
-            bal = acct["balances"]
-            accounts.append({
-                "institution": institution.name,
-                "name": institution.accounts.get(acct["account_id"], acct["name"]),
-                "type": acct["type"].value,
-                "subtype": acct["subtype"].value if acct["subtype"] else "",
-                "current": bal["current"],
-                "available": bal["available"],
-                "currency": bal["iso_currency_code"] or bal["unofficial_currency_code"],
-            })
-
-    return accounts

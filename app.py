@@ -1,18 +1,36 @@
+import os
 from datetime import date
 
-from flask import Flask, render_template
+from flask import Flask, jsonify
 
 from plaid_client import get_transactions
-from spending import compute_spending_summary
 
 app = Flask(__name__)
 
 
-@app.route("/")
-def index():
+@app.route("/api/summary")
+def api_summary():
     txns = get_transactions()
-    summary = compute_spending_summary(txns, date.today())
-    return render_template("index.html", summary=summary)
+    today = date.today()
+    month_total = sum(
+        t["amount"] for t in txns
+        if t["date"].year == today.year and t["date"].month == today.month
+    )
+
+    avg_per_day = month_total / today.day
+
+    budget_str = os.getenv("MONTHLY_BUDGET")
+    if budget_str:
+        budget = float(budget_str)
+        pct = int(month_total / budget * 100)
+        remaining = budget - month_total
+        line1 = f"Spent ${month_total:,.0f} of ${budget:,.0f} ({pct}%)"
+        line2 = f"${remaining:,.0f} remaining · ${avg_per_day:,.0f}/day avg"
+    else:
+        line1 = f"Spent ${month_total:,.0f}"
+        line2 = f"${avg_per_day:,.0f}/day avg"
+
+    return jsonify({"message": f"{line1}\n{line2}"})
 
 
 if __name__ == "__main__":
