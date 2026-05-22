@@ -2,10 +2,12 @@ import os
 from datetime import date
 
 from flask import Flask, jsonify
+from flask_limiter import Limiter
 
 from plaid_client import get_transactions
 
 app = Flask(__name__)
+limiter = Limiter(lambda: "global", app=app, default_limits=["5 per hour"])
 
 
 @app.route("/api/summary")
@@ -34,4 +36,4 @@ def api_summary():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)
