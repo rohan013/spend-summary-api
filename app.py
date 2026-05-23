@@ -14,10 +14,11 @@ limiter = Limiter(lambda: "global", app=app, default_limits=["5 per hour"])
 def api_summary():
     txns = get_transactions()
     today = date.today()
-    month_total = sum(
-        t["amount"] for t in txns
+    month_txns = [
+        t for t in txns
         if t["date"].year == today.year and t["date"].month == today.month
-    )
+    ]
+    month_total = sum(t["amount"] for t in month_txns)
 
     avg_per_day = month_total / today.day
 
@@ -32,7 +33,13 @@ def api_summary():
         line1 = f"Spent ${month_total:,.0f}"
         line2 = f"${avg_per_day:,.0f}/day avg"
 
-    return jsonify({"message": f"{line1}\n{line2}"})
+    message = f"{line1}\n{line2}"
+    top3 = sorted(month_txns, key=lambda t: t["amount"], reverse=True)[:3]
+    if top3:
+        line3 = " · ".join(f"{t['name']} ${t['amount']:,.0f}" for t in top3)
+        message += f"\n{line3}"
+
+    return jsonify({"message": message})
 
 
 if __name__ == "__main__":

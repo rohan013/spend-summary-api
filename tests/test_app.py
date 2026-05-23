@@ -9,6 +9,7 @@ import app as flask_app
 @pytest.fixture
 def client():
     flask_app.app.config["TESTING"] = True
+    flask_app.limiter.reset()
     with flask_app.app.test_client() as c:
         yield c
 
@@ -48,6 +49,42 @@ def test_api_summary_message_without_budget(client):
     assert "Spent $" in msg
     assert "/day avg" in msg
     assert "remaining" not in msg
+
+
+def test_api_summary_top_transactions_appear(client):
+    txns = [
+        {"amount": 150, "date": date(2026, 5, 1), "category": "Food", "name": "Whole Foods"},
+        {"amount": 80,  "date": date(2026, 5, 2), "category": "Shopping", "name": "Amazon"},
+        {"amount": 45,  "date": date(2026, 5, 3), "category": "Transport", "name": "Uber"},
+    ]
+    with patch("app.get_transactions", return_value=txns), \
+         patch("app.date") as mock_date, \
+         patch.dict("os.environ", {"MONTHLY_BUDGET": ""}):
+        mock_date.today.return_value = date(2026, 5, 15)
+        resp = client.get("/api/summary")
+    msg = resp.get_json()["message"]
+    assert "Whole Foods $150" in msg
+    assert "Amazon $80" in msg
+    assert "Uber $45" in msg
+
+
+def test_api_summary_top_transactions_capped_at_3(client):
+    txns = [
+        {"amount": 200, "date": date(2026, 5, 1), "category": "Food", "name": "Restaurant"},
+        {"amount": 150, "date": date(2026, 5, 2), "category": "Food", "name": "Whole Foods"},
+        {"amount": 80,  "date": date(2026, 5, 3), "category": "Shopping", "name": "Amazon"},
+        {"amount": 45,  "date": date(2026, 5, 4), "category": "Transport", "name": "Uber"},
+    ]
+    with patch("app.get_transactions", return_value=txns), \
+         patch("app.date") as mock_date, \
+         patch.dict("os.environ", {"MONTHLY_BUDGET": ""}):
+        mock_date.today.return_value = date(2026, 5, 15)
+        resp = client.get("/api/summary")
+    msg = resp.get_json()["message"]
+    assert "Restaurant $200" in msg
+    assert "Whole Foods $150" in msg
+    assert "Amazon $80" in msg
+    assert "Uber" not in msg
 
 
 def test_api_summary_only_counts_current_month(client):

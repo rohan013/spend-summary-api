@@ -1,6 +1,6 @@
 # Personal Finance
 
-A personal finance dashboard that fetches account balances from connected bank accounts via the Plaid API and displays them in a browser.
+A Flask app that fetches spending transactions from connected bank accounts via the Plaid API and exposes a single JSON endpoint (`GET /api/summary`) for use by iOS Shortcuts or other clients.
 
 ## Tech stack
 
@@ -13,20 +13,22 @@ A personal finance dashboard that fetches account balances from connected bank a
 ## Running the app
 
 ```bash
+python3 -m venv venv
 source venv/bin/activate
+pip install -r requirements.txt
 flask run          # or: python app.py
+# App at http://localhost:5000/api/summary
 ```
 
 ## File map
 
 | File | Role |
 |---|---|
-| `app.py` | Flask app. Single route `GET /` calls `get_balances()` and renders `templates/index.html`. |
-| `plaid_client.py` | Plaid API wrapper. Owns `create_link_token`, `exchange_public_token`, and `get_balances`. Also holds the module-level `_client` (PlaidApi) and `_store` (default JSONTokenStore). |
+| `app.py` | Flask app. Single route `GET /api/summary` calls `get_transactions()` and returns a JSON `{"message": "..."}`. |
+| `plaid_client.py` | Plaid API wrapper. Owns `create_link_token`, `exchange_public_token`, and `get_transactions`. Also holds the module-level `_client` (PlaidApi) and `_store` (default JSONTokenStore). |
 | `token_store.py` | Persistence layer. `TokenStore` is a `Protocol`; `JSONTokenStore` implements it against `tokens.json`. |
 | `models.py` | `InstitutionConfig` dataclass — holds access token, display name, and account ID→name mapping for one institution. |
 | `setup_accounts.py` | One-time onboarding script. Runs a local Flask server, opens Plaid Link in the browser, exchanges the public token for an access token, prompts for display names, and saves to `tokens.json`. |
-| `templates/index.html` | Jinja2 table rendering account balances. Columns: Account Name, Type, Subtype, Current Balance, Available Balance, Currency. Institution name is not shown. |
 | `tokens.json` | Runtime secret — Plaid access tokens per institution. Not committed. See `tokens.example.json`. |
 
 ## Environment variables
@@ -41,7 +43,7 @@ PLAID_ENV=sandbox   # or: production
 
 ## Key design decisions
 
-**Dependency injection via `TokenStore` protocol** — `get_balances(store: TokenStore = _store)` accepts any object with `list_institutions()`. The default `_store` is a module-level `JSONTokenStore()` so `app.py` can call `get_balances()` with no arguments. Tests inject a mock store directly.
+**Dependency injection via `TokenStore` protocol** — `get_transactions(store: TokenStore = _store)` accepts any object with `list_institutions()`. The default `_store` is a module-level `JSONTokenStore()` so `app.py` can call `get_transactions()` with no arguments. Tests inject a mock store directly.
 
 **`plaid_client.py` owns the store** — the token store is Plaid-specific (it holds Plaid access tokens), so it lives alongside the Plaid client rather than being wired up in `app.py`.
 
