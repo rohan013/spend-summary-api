@@ -48,6 +48,12 @@ ExecStart=${GUNICORN} -w 2 -b 0.0.0.0:${PORT} app:app
 Restart=on-failure
 RestartSec=5
 
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=${REPO_DIR}
+
 [Install]
 WantedBy=multi-user.target
 EOF

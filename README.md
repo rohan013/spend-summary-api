@@ -1,31 +1,27 @@
 # Personal Finance
 
-A Flask app that pulls spending transactions from connected bank accounts via the Plaid API and exposes a single JSON endpoint consumed by an iOS Shortcut for daily budget notifications.
+A Flask app that pulls spending transactions from connected bank accounts via the Plaid API and exposes a single JSON endpoint — `GET /api/summary` — for use by an iOS Shortcut or any other HTTP client.
+
+This repo is designed to be **forked and self-hosted**: each deployment uses its own Plaid app credentials and its own `tokens.json` of linked accounts. There's no multi-user support — it's one instance per person/household.
 
 ---
 
 ## How it works — end to end
 
 ```
-iOS Shortcut
-    │  HTTPS request to your-finance.example.com
-    │  Headers: CF-Access-Client-Id + CF-Access-Client-Secret
+Client (e.g. iOS Shortcut)
+    │  HTTPS request to your domain
     ▼
-Cloudflare Edge (your-finance.example.com)
-    │  TLS termination, DDoS protection
-    │  Cloudflare Access checks service token → allow
+Your reverse proxy / tunnel (your choice — see "Deploying" below)
     ▼
-cloudflared tunnel (running on Oracle VM)
-    │  Encrypted tunnel from Cloudflare edge to the VM
-    │  No open inbound ports required on the VM
+Flask app: GET /api/summary  (gunicorn, via systemd or Docker)
+    │  Fetches settled, non-transfer transactions for all linked
+    │  institutions in parallel
     ▼
-localhost:8317 (gunicorn, 2 workers)
-    │  Flask app: GET /api/summary
+Plaid API
+    │
     ▼
-Plaid API (production)
-    │  Fetches transactions for all linked institutions in parallel
-    ▼
-JSON response  →  back up the chain  →  iOS Shortcut displays it as a notification
+JSON response  →  back up the chain  →  client displays it
 ```
 
 ---
@@ -40,6 +36,7 @@ One route: `GET /api/summary`
 - Sums them up and computes a daily average.
 - If `MONTHLY_BUDGET` is set in `.env`, also shows budget percentage and remaining amount.
 - Returns a single JSON object: `{"message": "Spent $X of $Y (Z%)\n$R remaining · $A/day avg"}`
+- On error, returns a JSON `{"error": "..."}` — see [API responses](#api-responses).
 
 Rate limited to **5 requests per hour** globally (in-memory, resets on restart).
 
@@ -83,31 +80,120 @@ Single dataclass `InstitutionConfig` — holds `access_token`, `name`, and an `a
 
 ---
 
-## Networking & hosting
+## File map
 
-### Oracle Cloud VM
+| File | Role |
+|---|---|
+| `app.py` | Flask app. Single route `GET /api/summary`. |
+| `plaid_client.py` | Plaid API wrapper. Fetches transactions, handles pagination and parallel institution fetching. |
+| `token_store.py` | Storage layer. `TokenStore` protocol + `JSONTokenStore` implementation. |
+| `models.py` | `InstitutionConfig` dataclass. |
+| `setup_accounts.py` | One-time onboarding script to connect a bank account via Plaid Link. |
+| `tokens.json` | Runtime secret — Plaid access tokens. **Never commit.** |
+| `tokens.example.json` | Safe example showing the `tokens.json` structure. |
+| `deploy.sh` | Installs dependencies, writes the systemd unit, enables and starts the service. |
+| `undeploy.sh` | Stops and removes the systemd unit. Leaves `.env` and `venv` intact. |
+| `Dockerfile` / `.dockerignore` | Container image for running the app without systemd. |
+| `LICENSE` | MIT license. |
 
-The app runs on an Oracle Cloud free-tier VM. It is **not** exposed directly to the internet — there are no open inbound firewall ports for the app.
+---
 
-### Gunicorn (`personal-finance` systemd service)
+## Environment variables (`.env`)
 
-Gunicorn serves the Flask app on `0.0.0.0:8317` with 2 worker processes. It starts automatically on boot and restarts on failure.
+| Variable | Required | Description |
+|---|---|---|
+| `PLAID_CLIENT_ID` | Yes | Plaid dashboard → Team Settings → Keys |
+| `PLAID_SECRET` | Yes | Plaid dashboard → use the key matching `PLAID_ENV` |
+| `PLAID_ENV` | Yes | `sandbox` or `production` |
+| `MONTHLY_BUDGET` | No | Budget ceiling in dollars (e.g. `3500`). Enables % and remaining in the summary. |
 
+---
+
+## Using this for yourself
+
+1. Fork or clone this repo.
+2. Create a [Plaid](https://plaid.com) account and app to get your `PLAID_CLIENT_ID` and `PLAID_SECRET`.
+3. `cp .env.example .env` and fill in your Plaid credentials.
+4. Link your bank accounts:
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   python setup_accounts.py
+   ```
+   This opens Plaid Link in your browser and saves access tokens to `tokens.json` (never commit this file).
+5. Deploy using one of the options below.
+
+---
+
+## Running locally (dev)
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+flask run          # or: python app.py
+# App at http://localhost:5000/api/summary
 ```
-/etc/systemd/system/personal-finance.service
-ExecStart: gunicorn -w 2 -b 0.0.0.0:8317 app:app
+
+## Deploying
+
+### Option A: systemd (`deploy.sh`)
+
+```bash
+./deploy.sh        # installs deps, writes systemd unit, starts service
+./undeploy.sh      # stops and removes systemd unit
 ```
 
-Manage it with:
+Requires a systemd-based Linux host. This runs gunicorn on `0.0.0.0:8317` as a systemd service with auto-restart on failure and sandboxing (`NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict`, `ProtectHome`, with `ReadWritePaths` scoped to the repo so `tokens.json` stays writable).
+
 ```bash
 sudo systemctl status personal-finance
 sudo systemctl restart personal-finance
 sudo journalctl -u personal-finance -f        # live logs
 ```
 
-### Cloudflare Tunnel (`cloudflared` systemd service)
+This does **not** expose the app to the internet on its own — you're responsible for routing traffic to it (reverse proxy, tunnel, VPN, etc.). See the example recipe below.
 
-`cloudflared` runs as a systemd service and maintains an outbound-only encrypted tunnel to Cloudflare's edge. Because the connection is initiated from the VM, **no inbound port needs to be opened** on the Oracle firewall.
+### Option B: Docker
+
+```bash
+docker build -t personal-finance .
+docker run -d \
+  --name personal-finance \
+  -p 8000:8000 \
+  --env-file .env \
+  -v $(pwd)/tokens.json:/app/tokens.json \
+  personal-finance
+```
+
+Set `PORT` (default `8000`) in `.env` to change the port gunicorn binds to inside the container. As with the systemd option, this only binds locally/in-container — put it behind whatever reverse proxy or tunnel you prefer.
+
+### Example deployment recipe: Oracle Cloud VM + Cloudflare Tunnel
+
+This is one way to get a `deploy.sh`-managed instance reachable from the internet with **no open inbound ports** — the setup this repo was originally built for.
+
+```
+iOS Shortcut
+    │  HTTPS request to your-finance.example.com
+    │  Headers: CF-Access-Client-Id + CF-Access-Client-Secret
+    ▼
+Cloudflare Edge (your-finance.example.com)
+    │  TLS termination, DDoS protection
+    │  Cloudflare Access checks service token → allow
+    ▼
+cloudflared tunnel (running on the VM)
+    │  Encrypted tunnel from Cloudflare edge to the VM
+    │  No open inbound ports required on the VM
+    ▼
+localhost:8317 (gunicorn, 2 workers, via deploy.sh)
+```
+
+The Oracle Cloud free-tier VM is **not** exposed directly to the internet — there are no open inbound firewall ports for the app.
+
+#### Cloudflare Tunnel (`cloudflared` systemd service)
+
+`cloudflared` runs as a systemd service and maintains an outbound-only encrypted tunnel to Cloudflare's edge. Because the connection is initiated from the VM, **no inbound port needs to be opened** on the host firewall.
 
 The tunnel is token-based (remotely managed). Ingress routing (`your-finance.example.com` → `http://localhost:8317`) is configured in the Cloudflare Zero Trust dashboard under:
 **Networks → Connectors → Cloudflare Tunnels → your tunnel → Edit → Published application routes**
@@ -123,7 +209,7 @@ sudo systemctl status cloudflared
 sudo systemctl restart cloudflared
 ```
 
-### Cloudflare Access (authentication gate)
+#### Cloudflare Access (authentication gate)
 
 The domain is protected by a Cloudflare Access policy — unauthenticated requests get a 403. Access is granted via a **service token** (for the iOS Shortcut and machine clients):
 
@@ -136,49 +222,17 @@ Human users can be granted access via the Access policy in the Cloudflare Zero T
 
 ---
 
-## File map
+## API responses
 
-| File | Role |
-|---|---|
-| `app.py` | Flask app. Single route `GET /api/summary`. |
-| `plaid_client.py` | Plaid API wrapper. Fetches transactions, handles pagination and parallel institution fetching. |
-| `token_store.py` | Storage layer. `TokenStore` protocol + `JSONTokenStore` implementation. |
-| `models.py` | `InstitutionConfig` dataclass. |
-| `setup_accounts.py` | One-time onboarding script to connect a bank account via Plaid Link. |
-| `tokens.json` | Runtime secret — Plaid access tokens. **Never commit.** |
-| `tokens.example.json` | Safe example showing the `tokens.json` structure. |
-| `deploy.sh` | Installs dependencies, writes the systemd unit, enables and starts the service. |
-| `undeploy.sh` | Stops and removes the systemd unit. Leaves `.env` and `venv` intact. |
+`GET /api/summary` returns one of:
 
----
-
-## Environment variables (`.env`)
-
-| Variable | Required | Description |
+| Status | Body | When |
 |---|---|---|
-| `PLAID_CLIENT_ID` | Yes | Plaid dashboard → Team Settings → Keys |
-| `PLAID_SECRET` | Yes | Plaid dashboard → use the key matching `PLAID_ENV` |
-| `PLAID_ENV` | Yes | `sandbox` or `production` |
-| `MONTHLY_BUDGET` | No | Budget ceiling in dollars (e.g. `3500`). Enables % and remaining in the summary. |
+| 200 | `{"message": "Spent $X of $Y (Z%)\n$R remaining · $A/day avg\n..."}` | Success |
+| 502 | `{"error": "Failed to fetch transactions from Plaid"}` | Plaid API call failed (e.g. expired/revoked item) |
+| 500 | `{"error": "No linked accounts found — run setup_accounts.py first"}` | `tokens.json` doesn't exist yet |
 
 ---
-
-## Running locally (dev)
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-flask run          # or: python app.py
-# App at http://localhost:5000/api/summary
-```
-
-## Deploying / re-deploying
-
-```bash
-./deploy.sh        # installs deps, writes systemd unit, starts service
-./undeploy.sh      # stops and removes systemd unit
-```
 
 ## Testing
 
@@ -186,4 +240,6 @@ flask run          # or: python app.py
 pytest tests/ --cov=. --cov-branch --cov-report=term-missing --ignore=venv
 ```
 
-Target: >85% line and branch coverage. Current: 99%. The Plaid API is never called in tests — `plaid_client._client` is patched via `patch.object`.
+Target: >85% line and branch coverage. The Plaid API is never called in tests — `plaid_client._client` is patched via `patch.object`.
+
+A GitHub Actions workflow (`.github/workflows/test.yml`) runs this suite on every push and PR, failing if coverage drops below 85%.

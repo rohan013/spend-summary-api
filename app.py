@@ -1,6 +1,7 @@
 import os
 from datetime import date
 
+import plaid
 from flask import Flask, jsonify
 from flask_limiter import Limiter
 
@@ -12,7 +13,13 @@ limiter = Limiter(lambda: "global", app=app, default_limits=["5 per hour"])
 
 @app.route("/api/summary")
 def api_summary():
-    txns = get_transactions()
+    try:
+        txns = get_transactions()
+    except plaid.ApiException:
+        return jsonify({"error": "Failed to fetch transactions from Plaid"}), 502
+    except FileNotFoundError:
+        return jsonify({"error": "No linked accounts found — run setup_accounts.py first"}), 500
+
     today = date.today()
     month_txns = [
         t for t in txns

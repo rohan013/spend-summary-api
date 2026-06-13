@@ -1,6 +1,7 @@
 from datetime import date
 from unittest.mock import patch
 
+import plaid
 import pytest
 
 import app as flask_app
@@ -85,6 +86,20 @@ def test_api_summary_top_transactions_capped_at_3(client):
     assert "Whole Foods $150" in msg
     assert "Amazon $80" in msg
     assert "Uber" not in msg
+
+
+def test_api_summary_plaid_error_returns_502(client):
+    with patch("app.get_transactions", side_effect=plaid.ApiException(status=400, reason="Bad Request")):
+        resp = client.get("/api/summary")
+    assert resp.status_code == 502
+    assert "error" in resp.get_json()
+
+
+def test_api_summary_missing_tokens_returns_500(client):
+    with patch("app.get_transactions", side_effect=FileNotFoundError("tokens.json not found")):
+        resp = client.get("/api/summary")
+    assert resp.status_code == 500
+    assert "error" in resp.get_json()
 
 
 def test_api_summary_only_counts_current_month(client):
