@@ -116,19 +116,13 @@ def _fetch_institution_transactions(
     return result
 
 
-def get_transactions(store: TokenStore = _store, months_back: int = 5) -> list[dict]:
+def get_transactions(from_date: date, to_date: date | None = None, store: TokenStore = _store) -> list[dict]:
     institutions = store.list_institutions()
-    today = date.today()
-    m = today.month - (months_back - 1)
-    y = today.year
-    while m <= 0:
-        m += 12
-        y -= 1
-    start_date = date(y, m, 1)
+    to_date = to_date or date.today()
 
     with ThreadPoolExecutor() as executor:
         futures = [
-            executor.submit(_fetch_institution_transactions, inst.access_token, start_date, today)
+            executor.submit(_fetch_institution_transactions, inst.access_token, from_date, to_date)
             for inst in institutions
         ]
         results = [f.result() for f in futures]

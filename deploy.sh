@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SERVICE_NAME="personal-finance"
+SERVICE_NAME="spend-summary"
 PORT=8317
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -36,7 +36,7 @@ DEPLOY_USER="$(whoami)"
 echo "Writing systemd unit file (requires sudo) ..."
 sudo tee "$UNIT_FILE" > /dev/null <<EOF
 [Unit]
-Description=Personal Finance Flask App
+Description=Spend summary API
 After=network.target
 
 [Service]
@@ -51,7 +51,7 @@ RestartSec=5
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ProtectHome=true
+ProtectHome=read-only
 ReadWritePaths=${REPO_DIR}
 
 [Install]

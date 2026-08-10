@@ -2,7 +2,7 @@ from contextlib import contextmanager
 from datetime import date
 from unittest.mock import patch
 
-from budget import build_summary
+from budget import build_summary, compute_budget_status
 
 
 def _txn(amount, year, month, day, name="Store"):
@@ -66,13 +66,12 @@ def test_summary_top_transactions_capped_at_3():
     assert "Uber" not in msg
 
 
-def test_summary_only_counts_current_month():
-    txns = [_txn(100, 2026, 7, 1), _txn(200, 2026, 6, 1)]
+def test_compute_budget_status_queries_from_first_of_month():
     with _mock_today(date(2026, 7, 15)), \
-         patch("budget.get_transactions", return_value=txns), \
+         patch("budget.get_transactions", return_value=[]) as mock_get, \
          patch.dict("os.environ", {"MONTHLY_BUDGET": ""}):
-        msg = build_summary()
-    assert "Spent $100" in msg
+        compute_budget_status()
+    mock_get.assert_called_once_with(from_date=date(2026, 7, 1))
 
 
 # --- build_summary with budget ---

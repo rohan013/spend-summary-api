@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SERVICE_NAME="personal-finance"
+SERVICE_NAME="spend-summary"
 UNIT_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 
 if ! command -v systemctl &>/dev/null; then

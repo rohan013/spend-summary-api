@@ -42,7 +42,7 @@ def _make_txn(amount=50.0, year=2026, month=5, day=1, pfc_primary="FOOD_AND_DRIN
 def test_get_transactions_empty_store():
     store = MagicMock()
     store.list_institutions.return_value = []
-    assert plaid_client.get_transactions(store) == []
+    assert plaid_client.get_transactions(from_date=_date(2020, 1, 1), store=store) == []
 
 
 def test_get_transactions_basic_shape():
@@ -55,7 +55,7 @@ def test_get_transactions_basic_shape():
             "transactions": [txn],
             "total_transactions": 1,
         }
-        result = plaid_client.get_transactions(store)
+        result = plaid_client.get_transactions(from_date=_date(2020, 1, 1), store=store)
 
     assert len(result) == 1
     assert result[0]["amount"] == 50.0
@@ -79,7 +79,7 @@ def test_get_transactions_filters_excluded_pfc_categories():
             "transactions": txns,
             "total_transactions": len(txns),
         }
-        result = plaid_client.get_transactions(store)
+        result = plaid_client.get_transactions(from_date=_date(2020, 1, 1), store=store)
 
     assert len(result) == 1
     assert result[0]["category"] == "Food And Drink"
@@ -99,7 +99,7 @@ def test_get_transactions_filters_nonpositive_amounts():
             "transactions": txns,
             "total_transactions": len(txns),
         }
-        result = plaid_client.get_transactions(store)
+        result = plaid_client.get_transactions(from_date=_date(2020, 1, 1), store=store)
 
     assert len(result) == 1
     assert result[0]["amount"] == 25.0
@@ -115,7 +115,7 @@ def test_get_transactions_filters_pending():
             "transactions": txns,
             "total_transactions": len(txns),
         }
-        result = plaid_client.get_transactions(store)
+        result = plaid_client.get_transactions(from_date=_date(2020, 1, 1), store=store)
 
     assert len(result) == 1
 
@@ -130,7 +130,7 @@ def test_get_transactions_falls_back_to_legacy_category():
             "transactions": [txn],
             "total_transactions": 1,
         }
-        result = plaid_client.get_transactions(store)
+        result = plaid_client.get_transactions(from_date=_date(2020, 1, 1), store=store)
 
     assert result[0]["category"] == "Food and Drink"
 
@@ -145,7 +145,7 @@ def test_get_transactions_legacy_fallback_no_category_returns_uncategorized():
             "transactions": [txn],
             "total_transactions": 1,
         }
-        result = plaid_client.get_transactions(store)
+        result = plaid_client.get_transactions(from_date=_date(2020, 1, 1), store=store)
 
     assert result[0]["category"] == "Uncategorized"
 
@@ -163,7 +163,7 @@ def test_get_transactions_legacy_excluded_categories_filtered():
             "transactions": txns,
             "total_transactions": len(txns),
         }
-        result = plaid_client.get_transactions(store)
+        result = plaid_client.get_transactions(from_date=_date(2020, 1, 1), store=store)
 
     assert len(result) == 1
 
@@ -181,29 +181,43 @@ def test_get_transactions_paginates():
 
     with patch.object(plaid_client, "_client") as mock_client:
         mock_client.transactions_get.side_effect = responses
-        result = plaid_client.get_transactions(store)
+        result = plaid_client.get_transactions(from_date=_date(2020, 1, 1), store=store)
 
     assert len(result) == 3
     assert mock_client.transactions_get.call_count == 2
 
 
-def test_get_transactions_year_rollover_start_date():
+def test_get_transactions_passes_from_date_and_to_date():
+    store = MagicMock()
+    store.list_institutions.return_value = [_institution()]
+
+    with patch.object(plaid_client, "_client") as mock_client:
+        mock_client.transactions_get.return_value = {
+            "transactions": [],
+            "total_transactions": 0,
+        }
+        plaid_client.get_transactions(from_date=_date(2026, 7, 1), to_date=_date(2026, 7, 15), store=store)
+
+    req = mock_client.transactions_get.call_args[0][0]
+    assert req["start_date"] == _date(2026, 7, 1)
+    assert req["end_date"] == _date(2026, 7, 15)
+
+
+def test_get_transactions_to_date_defaults_to_today():
     store = MagicMock()
     store.list_institutions.return_value = [_institution()]
 
     with patch.object(plaid_client, "_client") as mock_client, \
          patch("plaid_client.date") as mock_date:
-        mock_date.today.return_value = _date(2026, 1, 15)
-        mock_date.side_effect = lambda *a: _date(*a)
+        mock_date.today.return_value = _date(2026, 7, 20)
         mock_client.transactions_get.return_value = {
             "transactions": [],
             "total_transactions": 0,
         }
-        plaid_client.get_transactions(store, months_back=5)
+        plaid_client.get_transactions(from_date=_date(2026, 7, 1), store=store)
 
     req = mock_client.transactions_get.call_args[0][0]
-    # months_back=5 → start_date should be Sep 1, 2025 (Jan - 4 months)
-    assert req["start_date"] == _date(2025, 9, 1)
+    assert req["end_date"] == _date(2026, 7, 20)
 
 
 def test_get_transactions_multiple_institutions_merged():
@@ -218,7 +232,7 @@ def test_get_transactions_multiple_institutions_merged():
             {"transactions": [_make_txn(amount=100.0)], "total_transactions": 1},
             {"transactions": [_make_txn(amount=200.0)], "total_transactions": 1},
         ]
-        result = plaid_client.get_transactions(store)
+        result = plaid_client.get_transactions(from_date=_date(2020, 1, 1), store=store)
 
     assert len(result) == 2
     amounts = {r["amount"] for r in result}
