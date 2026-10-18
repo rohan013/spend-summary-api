@@ -145,7 +145,7 @@ flask run          # or: python app.py
 ./undeploy.sh      # stops and removes systemd unit
 ```
 
-Requires a systemd-based Linux host. This runs gunicorn on `0.0.0.0:8317` as a systemd service with auto-restart on failure and sandboxing (`NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict`, `ProtectHome`, with `ReadWritePaths` scoped to the repo so `tokens.json` stays writable).
+Requires a systemd-based Linux host. This runs gunicorn on `127.0.0.1:8317` (loopback only; the Cloudflare Tunnel is the sole way in) as a systemd service with auto-restart on failure and sandboxing (`NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict`, `ProtectHome`, with `ReadWritePaths` scoped to the repo so `tokens.json` stays writable).
 
 ```bash
 sudo systemctl status personal-finance

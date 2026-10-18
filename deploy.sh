@@ -44,7 +44,7 @@ Type=simple
 User=${DEPLOY_USER}
 WorkingDirectory=${REPO_DIR}
 EnvironmentFile=${ENV_FILE}
-ExecStart=${GUNICORN} -w 2 -b 0.0.0.0:${PORT} app:app
+ExecStart=${GUNICORN} -w 2 -b 127.0.0.1:${PORT} app:app
 Restart=on-failure
 RestartSec=5
 
@@ -69,5 +69,4 @@ sudo systemctl is-active --quiet "$SERVICE_NAME" \
 
 echo ""
 echo "Deployed. App available at:"
-echo "  http://$(hostname -I | awk '{print $1}'):${PORT}"
 echo "  http://localhost:${PORT}"
