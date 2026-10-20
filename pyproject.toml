@@ -1,0 +1,21 @@
+[project]
+name = "spend-summary"
+version = "0"
+description = "Plaid spending summary API for an iOS Shortcut"
+requires-python = ">=3.12"
+dependencies = [
+    "flask==3.1.3",
+    "flask-limiter==4.1.1",
+    "gunicorn==26.0.0",
+    "plaid-python==39.2.0",
+    "python-dotenv==1.2.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.0.3",
+    "pytest-cov==7.1.0",
+]
+
+[tool.uv]
+package = false

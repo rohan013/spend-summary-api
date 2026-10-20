@@ -23,14 +23,8 @@ if [[ ! -f "$ENV_FILE" ]]; then
     exit 1
 fi
 
-if [[ ! -d "$VENV_DIR" ]]; then
-    echo "Creating virtual environment at $VENV_DIR ..."
-    python3 -m venv "$VENV_DIR"
-fi
-
-echo "Installing/upgrading dependencies ..."
-"$VENV_DIR/bin/pip" install --quiet --upgrade pip
-"$VENV_DIR/bin/pip" install --quiet -r "$REPO_DIR/requirements.txt"
+echo "Installing dependencies from uv.lock into $VENV_DIR ..."
+UV_PROJECT_ENVIRONMENT="$VENV_DIR" uv sync --quiet --frozen --no-dev --project "$REPO_DIR"
 
 DEPLOY_USER="$(whoami)"
 echo "Writing systemd unit file (requires sudo) ..."

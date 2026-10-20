@@ -13,10 +13,8 @@ A Flask app that fetches spending transactions from connected bank accounts via 
 ## Running the app
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-flask run          # or: python app.py
+uv sync
+uv run flask run   # or: uv run python app.py
 # App at http://localhost:5000/api/summary
 ```
 

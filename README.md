@@ -116,10 +116,8 @@ Single dataclass `InstitutionConfig` — holds `access_token`, `name`, and an `a
 3. `cp .env.example .env` and fill in your Plaid credentials.
 4. Link your bank accounts:
    ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   python setup_accounts.py
+   uv sync
+   uv run python setup_accounts.py
    ```
    This opens Plaid Link in your browser and saves access tokens to `tokens.json` (never commit this file).
 5. Deploy using one of the options below.
@@ -129,10 +127,8 @@ Single dataclass `InstitutionConfig` — holds `access_token`, `name`, and an `a
 ## Running locally (dev)
 
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-flask run          # or: python app.py
+uv sync
+uv run flask run   # or: uv run python app.py
 # App at http://localhost:5000/api/summary
 ```
 
@@ -237,7 +233,7 @@ Human users can be granted access via the Access policy in the Cloudflare Zero T
 ## Testing
 
 ```bash
-pytest tests/ --cov=. --cov-branch --cov-report=term-missing --ignore=venv
+uv run pytest tests/ --cov=. --cov-branch --cov-report=term-missing --ignore=.venv --ignore=venv
 ```
 
 Target: >85% line and branch coverage. The Plaid API is never called in tests — `plaid_client._client` is patched via `patch.object`.
